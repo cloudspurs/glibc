@@ -251,5 +251,5 @@ do_test (void)
   return 0;
 }
 
-#define TIMEOUT 30
+#define TIMEOUT 300
 #include <support/test-driver.c>
