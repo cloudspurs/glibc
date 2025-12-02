@@ -56,6 +56,12 @@ struct termios2
    Some other architectures only have the equivalent of the termios2
    interface, in which case the old ioctl names are the only ones
    presented, but are equivalent to the new ones. */
+
+#undef TCGETS2
+#undef TCSETS2
+#undef TCSETSW2
+#undef TCSETSF2
+
 #ifndef TCGETS2
 # define TCGETS2  TCGETS
 # define TCSETS2  TCSETS
