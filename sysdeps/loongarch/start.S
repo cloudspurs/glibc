@@ -57,23 +57,39 @@ ENTRY (ENTRY_POINT)
 /* Terminate call stack by noting ra is undefined.  Use a dummy
    .cfi_label to force starting the FDE.  */
 	.cfi_label .Ldummy
-	cfi_undefined (1)
+	cfi_undefined	(1)
 	or		a5, a0, zero /* rtld_fini */
 
-	la.pcrel	a0, t0, main
+#	LOAD_ADDR	(a0, main)
+#if defined PIC && !defined SHARED
+	/* Avoid relocation in static PIE since _start is called before it
+	   is relocated.  */
+	la.pcrel	a0, __wrap_main
+#else
+	LA_GOT		(a0, main)
+#endif
+
 	REG_L		a1, sp, 0
 	ADDI		a2, sp, SZREG
 
-	/* Adjust $sp for 16-aligned */
-	BSTRINS		sp, zero, 3, 0
+	/* Adjust $sp for 16-bytes aligned */
+	REG_ALIGN_ASM	(sp, 4)
 
 	move		a3, zero /* used to be init */
 	move		a4, zero /* used to be fini */
 	or		a6, sp, zero /* stack_end */
 
-	la.pcrel	ra, t0, __libc_start_main
-	jirl		ra, ra, 0
+#	LOAD_ADDR	(ra, __libc_start_main)
+#	jirl		ra, ra, 0
+#
+#	LOAD_ADDR	(ra, abort)
+#	jirl		ra, ra, 0
 
-	la.pcrel	ra, t0, abort
-	jirl		ra, ra, 0
+	CALL		(__libc_start_main)
+	CALL		(abort)
+
+#if defined PIC && !defined SHARED
+__wrap_main:
+	TAIL		(main)
+#endif
 END (ENTRY_POINT)

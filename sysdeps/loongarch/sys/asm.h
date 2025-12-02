@@ -22,22 +22,103 @@
 #include <sys/regdef.h>
 #include <sysdeps/generic/sysdep.h>
 
+#define STACK_ALIGN 16
+
 /* Macros to handle different pointer/register sizes for 32/64-bit code.  */
+#if __loongarch_grlen == 64
+#define PTRLOG 3
 #define SZREG 8
-#define SZFREG 8
-#define SZVREG 16
-#define SZXREG 32
 #define REG_L ld.d
 #define REG_S st.d
 #define SRLI srli.d
+#define SRAI srai.d
 #define SLLI slli.d
 #define ADDI addi.d
 #define ADD  add.d
 #define SUB  sub.d
-#define BSTRINS  bstrins.d
 #define LI  li.d
-#define FREG_L fld.d
-#define FREG_S fst.d
+#define BSTRINS  bstrins.d
+
+/* Align reg to 2^n.  Used in assembly.  */
+#define REG_ALIGN_ASM(reg, n) bstrins.d reg, zero, (n-1), 0
+
+/* Align reg to 2^n.  Used in C.  */
+#define REG_ALIGN_C(reg, n) \
+  "bstrins.d\t" __STRING(reg) ", $zero, (" __STRING(n) "-1), 0"
+
+#define LOAD_ADDR(reg, sym) la.pcrel reg, t0, sym
+
+#define LOAD_LOCAL(reg, sym) \
+  pcalau12i reg, %pc_hi20(sym); \
+  ld.d	    reg, reg, %pc_lo12(sym);
+
+#define LOAD_GLOBAL(reg, sym) \
+  la.got    reg, sym; \
+  ld.d	    reg, reg, 0;
+
+#define LA_GOT(reg, sym) la.got reg, t0, sym
+
+#define CALL(sym) call36 sym
+#define TAIL(sym) tail36 t0, sym
+
+#elif __loongarch_grlen == 32
+
+#define PTRLOG 2
+#define SZREG 4
+#define REG_L ld.w
+#define REG_S st.w
+#define SRLI srli.w
+#define SRAI srai.w
+#define SLLI slli.w
+#define ADDI addi.w
+#define ADD  add.w
+#define SUB  sub.w
+#define LI  li.w
+#define BSTRINS  bstrins.w
+
+/* LA32R not have bstrins.w, use srli.w and slli.w on both LA32S and LA32R.  */
+#define REG_ALIGN_ASM(reg, n) \
+  srli.w reg, reg, n; \
+  slli.w reg, reg, n;
+
+#define REG_ALIGN_C(reg, n) \
+  "srli.w\t" __STRING(reg)", " __STRING(reg)", " __STRING(n) "\n\t" \
+  "slli.w\t" __STRING(reg)", " __STRING(reg)", " __STRING(n)
+
+#define LOAD_ADDR(reg, sym) \
+  1: pcaddu12i	reg, %pcadd_hi20(sym); \
+     addi.w	reg, reg, %pcadd_lo12(1b);
+
+#define LOAD_LOCAL(reg, sym) \
+  1: pcaddu12i	reg, %pcadd_hi20(sym); \
+     ld.w	reg, reg, %pcadd_lo12(1b);
+
+#define LOAD_GLOBAL(reg, sym) \
+  1: pcaddu12i	reg, %got_pcadd_hi20(sym); \
+     ld.w	reg, reg, %pcadd_lo12(1b); \
+     ld.w	reg, reg, 0;
+
+#define LA_GOT(reg, sym) la.got reg, sym
+
+#define CALL(sym) call30 sym
+#define TAIL(sym) tail30 t0, sym
+
+#else
+#error __loongarch_grlen must equal 32 or 64
+#endif
+
+#if __loongarch_frlen == 64
+  #define SZFREG 8
+  #define FREG_L fld.d
+  #define FREG_S fst.d
+#elif __loongarch_frlen == 32
+  #define SZFREG 4
+  #define FREG_L fld.s
+  #define FREG_S fst.s
+#endif
+
+#define SZVREG 16
+#define SZXREG 32
 
 /*  Declare leaf routine.
     The usage of macro LEAF/ENTRY is as follows:
