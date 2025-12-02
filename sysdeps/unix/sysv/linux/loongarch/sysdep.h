@@ -34,9 +34,9 @@
 #undef PSEUDO
 #define PSEUDO(name, syscall_name, args) \
   ENTRY (name); \
-  li.d a7, SYS_ify (syscall_name); \
+  LI a7, SYS_ify (syscall_name); \
   syscall 0; \
-  li.d a7, -4096; \
+  LI a7, -4096; \
   bltu a7, a0, .Lsyscall_error##name;
 
 #undef PSEUDO_END
@@ -52,16 +52,16 @@
   .Lsyscall_error##name : la t0, rtld_errno; \
   sub.w a0, zero, a0; \
   st.w a0, t0, 0; \
-  li.d a0, -1;
+  LI a0, -1;
 
 #else
 
 #define SYSCALL_ERROR_HANDLER(name) \
   .Lsyscall_error##name : la.tls.ie t0, errno; \
-  add.d t0, tp, t0; \
+  ADD t0, tp, t0; \
   sub.w a0, zero, a0; \
   st.w a0, t0, 0; \
-  li.d a0, -1;
+  LI a0, -1;
 
 #endif
 #else
@@ -74,7 +74,7 @@
 #undef PSEUDO_NEORRNO
 #define PSEUDO_NOERRNO(name, syscall_name, args) \
   ENTRY (name); \
-  li.d a7, SYS_ify (syscall_name); \
+  LI a7, SYS_ify (syscall_name); \
   syscall 0;
 
 #undef PSEUDO_END_NOERRNO
@@ -85,11 +85,17 @@
 
 /* Performs a system call, returning the error code.  */
 #undef PSEUDO_ERRVAL
+#if __loongarch_grlen == 64
 #define PSEUDO_ERRVAL(name, syscall_name, args) \
   PSEUDO_NOERRNO (name, syscall_name, args); \
   slli.d a0, a0, 32; \
   srai.d a0, a0, 32; /* sign_ext */ \
   sub.d a0, zero, a0;
+#else
+#define PSEUDO_ERRVAL(name, syscall_name, args) \
+  PSEUDO_NOERRNO (name, syscall_name, args); \
+  sub.w a0, zero, a0;
+#endif
 
 #undef PSEUDO_END_ERRVAL
 #define PSEUDO_END_ERRVAL(name) END (name);
@@ -108,6 +114,18 @@
 
 #undef SYS_ify
 #define SYS_ify(syscall_name) __NR_##syscall_name
+
+#if __WORDSIZE == 32
+/* Workarounds for generic code needing to handle 64-bit time_t.  */
+#define __NR_clock_getres	__NR_clock_getres_time64
+#define __NR_futex		__NR_futex_time64
+#define __NR_ppoll		__NR_ppoll_time64
+#define __NR_pselect6		__NR_pselect6_time64
+#define __NR_recvmmsg		__NR_recvmmsg_time64
+#define __NR_rt_sigtimedwait	__NR_rt_sigtimedwait_time64
+#define __NR_semtimedop		__NR_semtimedop_time64
+#define __NR_utimensat		__NR_utimensat_time64
+#endif /* __WORDSIZE == 32 */
 
 #ifndef __ASSEMBLER__
 
