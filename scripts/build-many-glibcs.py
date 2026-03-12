@@ -269,7 +269,7 @@ class Context(object):
                         os_name='linux-gnusf',
                         gcc_cfg=['--with-arch=la32rv1.0', '--disable-multilib'])
         self.add_config(arch='loongarch64',
-                        os_name='linux-gnu',
+                        os_name='linux-gnuf64',
                         gcc_cfg=['--with-arch=loongarch64', '--disable-multilib'])
         self.add_config(arch='loongarch64',
                         os_name='linux-gnusf',
